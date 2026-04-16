@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Regis AI — Biometric Auth</title>
+<script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ─── RESET & BASE ─── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #08090d;
+    --surface:   #0e1018;
+    --glass:     rgba(255,255,255,0.035);
+    --border:    rgba(255,255,255,0.07);
+    --cyan:      #00e5ff;
+    --violet:    #7b5ea7;
+    --green:     #00ffaa;
+    --amber:     #ffcc00;
+    --red:       #ff4466;
+    --text:      #d0d4e8;
+    --muted:     #4a5068;
+    --mono:      'Share Tech Mono', monospace;
+    --sans:      'Outfit', sans-serif;
+  }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ─── AMBIENT BACKGROUND ─── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 50% at 20% 10%, rgba(0,229,255,0.06) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 60% at 80% 90%, rgba(123,94,167,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* ─── MAIN CARD ─── */
+  .card {
+    position: relative;
+    width: min(440px, 100vw - 32px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 28px;
+    box-shadow:
+      0 0 0 1px rgba(0,229,255,0.04),
+      0 30px 80px rgba(0,0,0,0.7),
+      inset 0 1px 0 rgba(255,255,255,0.06);
+    animation: cardIn 0.6s cubic-bezier(.22,.68,0,1.2) both;
+  }
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(24px) scale(0.97); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* ─── HEADER ─── */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+  .logo {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--cyan), var(--violet));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    box-shadow: 0 0 20px rgba(0,229,255,0.3);
+  }
+  .brand-name {
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #fff;
+  }
+  .brand-tag {
+    font-size: 0.7rem;
+    font-family: var(--mono);
+    color: var(--cyan);
+    background: rgba(0,229,255,0.08);
+    border: 1px solid rgba(0,229,255,0.2);
+    padding: 2px 7px;
+    border-radius: 20px;
+    margin-left: 6px;
+    vertical-align: middle;
+    letter-spacing: 0.05em;
+  }
+  .brand-sub {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-weight: 300;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  /* ─── VIDEO FRAME ─── */
+  .video-wrap {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #000;
+    aspect-ratio: 4/3;
+    margin-bottom: 18px;
+    border: 1px solid var(--border);
+  }
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transform: scaleX(-1);
+  }
+
+  /* Corner brackets */
+  .video-wrap::before,
+  .video-wrap::after,
+  .corner-bl, .corner-br {
+    content: '';
+    position: absolute;
+    width: 22px; height: 22px;
+    border-color: var(--cyan);
+    border-style: solid;
+    z-index: 10;
+    transition: border-color 0.4s;
+  }
+  .video-wrap::before { top: 10px; left: 10px; border-width: 2px 0 0 2px; border-radius: 4px 0 0 0; }
+  .video-wrap::after  { top: 10px; right: 10px; border-width: 2px 2px 0 0; border-radius: 0 4px 0 0; }
+  .corner-bl { bottom: 10px; left: 10px; border-width: 0 0 2px 2px; border-radius: 0 0 0 4px; }
+  .corner-br { bottom: 10px; right: 10px; border-width: 0 2px 2px 0; border-radius: 0 0 4px 0; }
+
+  /* Scanning line */
+  .scan-line {
+    position: absolute;
+    left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    top: 0;
+    z-index: 9;
+    animation: scan 2.5s linear infinite;
+    opacity: 0.7;
+  }
+  .scan-line.hidden { display: none; }
+  @keyframes scan {
+    0%   { top: 0%;   opacity: 0; }
+    5%   { opacity: 0.7; }
+    95%  { opacity: 0.7; }
+    100% { top: 100%; opacity: 0; }
+  }
+
+  /* Face overlay ring */
+  .face-ring {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 120px; height: 140px;
+    border: 1.5px solid rgba(0,229,255,0.3);
+    border-radius: 50%;
+    z-index: 8;
+    pointer-events: none;
+  }
+
+  /* ─── STEPS TRACK ─── */
+  .steps-track {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    justify-content: center;
+  }
+  .step-dot {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    transition: background 0.4s, box-shadow 0.4s;
+    max-width: 80px;
+  }
+  .step-dot.active   { background: var(--amber); box-shadow: 0 0 10px var(--amber); }
+  .step-dot.done     { background: var(--green); box-shadow: 0 0 10px var(--green); }
+
+  /* ─── STATUS BOX ─── */
+  .status-box {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 18px;
+    min-height: 70px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: border-color 0.4s;
+  }
+  .status-box.loading { border-color: var(--muted); }
+  .status-box.challenge { border-color: rgba(255,204,0,0.35); }
+  .status-box.success  { border-color: rgba(0,255,170,0.4); }
+  .status-box.error    { border-color: rgba(255,68,102,0.4); }
+
+  .status-icon {
+    font-size: 1.8rem;
+    flex-shrink: 0;
+    width: 36px;
+    text-align: center;
+    animation: iconPop 0.3s cubic-bezier(.22,.68,0,1.5) both;
+  }
+  @keyframes iconPop {
+    from { transform: scale(0.5); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+
+  .status-text { flex: 1; }
+  .status-label {
+    font-size: 0.65rem;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 3px;
+  }
+  .status-msg {
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: #fff;
+  }
+  .status-msg.amber { color: var(--amber); }
+  .status-msg.green { color: var(--green); }
+  .status-msg.cyan  { color: var(--cyan);  }
+  .status-msg.red   { color: var(--red);   }
+
+  /* ─── HEAD DIRECTION INDICATOR ─── */
+  .direction-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 18px;
+    height: 40px;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+  .direction-indicator.visible { opacity: 1; }
+  .dir-arrow {
+    font-size: 1.4rem;
+    transition: color 0.3s, transform 0.3s;
+    color: var(--muted);
+  }
+  .dir-arrow.target { color: var(--amber); transform: scale(1.3); }
+  .dir-arrow.active { color: var(--green); transform: scale(1.3); }
+
+  .head-icon {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+    transition: transform 0.15s ease-out, box-shadow 0.3s;
+  }
+  .head-icon.turned-right { transform: rotate(15deg); box-shadow: 4px 0 12px rgba(0,229,255,0.3); }
+  .head-icon.turned-left  { transform: rotate(-15deg); box-shadow: -4px 0 12px rgba(0,229,255,0.3); }
+
+  /* ─── LIVE RATIO DEBUG ─── */
+  .ratio-bar-wrap {
+    margin-bottom: 18px;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+  .ratio-bar-wrap.visible { opacity: 1; }
+  .ratio-bar-label {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .ratio-bar-track {
+    height: 4px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .ratio-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--violet), var(--cyan));
+    border-radius: 2px;
+    width: 50%;
+    transition: width 0.1s linear;
+  }
+
+  /* ─── RESULT PANEL ─── */
+  .result-panel {
+    display: none;
+    margin-top: 4px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(0,255,170,0.25);
+    animation: slideUp 0.5s cubic-bezier(.22,.68,0,1.2) both;
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .result-header {
+    background: rgba(0,255,170,0.07);
+    border-bottom: 1px solid rgba(0,255,170,0.15);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .result-header-text {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--green);
+  }
+  .badge-verified {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    background: rgba(0,255,170,0.12);
+    border: 1px solid rgba(0,255,170,0.3);
+    color: var(--green);
+    padding: 2px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.08em;
+  }
+  .descriptor-box {
+    background: rgba(0,0,0,0.4);
+    padding: 12px 14px;
+    max-height: 90px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--muted) transparent;
+  }
+  .descriptor-text {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: rgba(0,255,170,0.85);
+    word-break: break-all;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+  .result-actions {
+    background: rgba(0,0,0,0.3);
+    padding: 10px 14px;
+    display: flex;
+    gap: 8px;
+  }
+  .btn-copy {
+    flex: 1;
+    font-family: var(--sans);
+    font-size: 0.82rem;
+    font-weight: 600;
+    background: linear-gradient(135deg, var(--green), #00cc88);
+    color: #000;
+    border: none;
+    padding: 9px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .btn-copy:hover { opacity: 0.88; transform: translateY(-1px); }
+  .btn-copy:active { transform: translateY(0); }
+
+  .btn-copy-arr {
+    flex: 1;
+    font-family: var(--sans);
+    font-size: 0.82rem;
+    font-weight: 600;
+    background: var(--glass);
+    color: var(--green);
+    border: 1px solid rgba(0,255,170,0.25);
+    padding: 9px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .btn-copy-arr:hover { background: rgba(0,255,170,0.07); transform: translateY(-1px); }
+
+  /* ─── FOOTER ─── */
+  .footer {
+    margin-top: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 0.65rem;
+    font-family: var(--mono);
+    color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+  .footer-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--green); }
+    50%       { opacity: 0.4; box-shadow: none; }
+  }
+
+  /* ─── SUCCESS FLASH ─── */
+  @keyframes successFlash {
+    0%   { border-color: rgba(0,255,170,0.8); box-shadow: 0 0 30px rgba(0,255,170,0.4); }
+    100% { border-color: var(--border); box-shadow: none; }
+  }
+  .video-wrap.flash-success { animation: successFlash 0.6s ease-out; }
+
+  /* ─── STEP COMPLETE RIPPLE ─── */
+  .step-complete-overlay {
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    background: rgba(0,255,170,0.08);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 11;
+  }
+  @keyframes rippleIn {
+    0%   { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  .step-complete-overlay.ripple { animation: rippleIn 0.5s ease-out forwards; }
+
+  /* ─── TOAST ─── */
+  .toast {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(20,22,30,0.95);
+    border: 1px solid var(--green);
+    color: var(--green);
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    padding: 10px 20px;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s, transform 0.3s;
+    z-index: 999;
+    white-space: nowrap;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ─── LOADING SPINNER ─── */
+  .spinner {
+    display: inline-block;
+    width: 18px; height: 18px;
+    border: 2px solid var(--muted);
+    border-top-color: var(--cyan);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<div class="card">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">⬡</div>
+    <div>
+      <div class="brand-name">Regis AI <span class="brand-tag">BETA</span></div>
+      <div class="brand-sub">Biometric Identity Engine</div>
+    </div>
+  </div>
+
+  <!-- Steps Track -->
+  <div class="steps-track" id="steps-track"></div>
+
+  <!-- Video -->
+  <div class="video-wrap" id="video-wrap">
+    <div class="scan-line" id="scan-line"></div>
+    <div class="face-ring"></div>
+    <div class="corner-bl"></div>
+    <div class="corner-br"></div>
+    <div class="step-complete-overlay" id="step-overlay"></div>
+    <video id="video" autoplay muted playsinline></video>
+  </div>
+
+  <!-- Head Direction Indicator -->
+  <div class="direction-indicator" id="direction-indicator">
+    <span class="dir-arrow" id="arrow-left">◀</span>
+    <div class="head-icon" id="head-icon">🫥</div>
+    <span class="dir-arrow" id="arrow-right">▶</span>
+  </div>
+
+  <!-- Ratio Debug Bar -->
+  <div class="ratio-bar-wrap" id="ratio-bar-wrap">
+    <div class="ratio-bar-label">
+      <span>HEAD ORIENTATION RATIO</span>
+      <span id="ratio-value" style="font-family:var(--mono)">—</span>
+    </div>
+    <div class="ratio-bar-track">
+      <div class="ratio-bar-fill" id="ratio-fill"></div>
+    </div>
+  </div>
+
+  <!-- Status Box -->
+  <div class="status-box loading" id="status-box">
+    <div class="status-icon" id="status-icon">⬡</div>
+    <div class="status-text">
+      <div class="status-label" id="status-label">SYSTEM</div>
+      <div class="status-msg cyan" id="status-msg">
+        <span class="spinner"></span>Loading neural models…
+      </div>
+    </div>
+  </div>
+
+  <!-- Result Panel -->
+  <div class="result-panel" id="result-panel">
+    <div class="result-header">
+      <span class="result-header-text">🧬 Face Descriptor · 128-dim vector</span>
+      <span class="badge-verified">✓ VERIFIED</span>
+    </div>
+    <div class="descriptor-box">
+      <div class="descriptor-text" id="descriptor-text"></div>
+    </div>
+    <div class="result-actions">
+      <button class="btn-copy" onclick="copyString()">Copy as String</button>
+      <button class="btn-copy-arr" onclick="copyArray()">Copy as Array</button>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-dot"></div>
+    LOCAL PROCESSING · NO DATA TRANSMITTED
+  </div>
+
+</div>
+
+<script>
+/* ─── STATE ─── */
+const CHALLENGES = ['Turn Right', 'Turn Left', 'Look Up', 'Look Down', 'Blink', 'Smile'];
+let steps = [], currentStep = 0, isComplete = false;
+let storedDescriptor = null;
+let lastDirection = 'center';
+let currentRatio = 1;
+let stepLocked = false; // guard: prevents onStepPass firing multiple frames per step
+let blinkFrames = 0;
+let smileFrames = 0;
+
+/* ─── DOM REFS ─── */
+const video       = document.getElementById('video');
+const statusBox   = document.getElementById('status-box');
+const statusIcon  = document.getElementById('status-icon');
+const statusLabel = document.getElementById('status-label');
+const statusMsg   = document.getElementById('status-msg');
+const stepsTrack  = document.getElementById('steps-track');
+const dirIndicator= document.getElementById('direction-indicator');
+const arrowLeft   = document.getElementById('arrow-left');
+const arrowRight  = document.getElementById('arrow-right');
+const headIcon    = document.getElementById('head-icon');
+const ratioWrap   = document.getElementById('ratio-bar-wrap');
+const ratioFill   = document.getElementById('ratio-fill');
+const ratioValue  = document.getElementById('ratio-value');
+const videoWrap   = document.getElementById('video-wrap');
+const stepOverlay = document.getElementById('step-overlay');
+const scanLine    = document.getElementById('scan-line');
+const resultPanel = document.getElementById('result-panel');
+const descriptorText = document.getElementById('descriptor-text');
+const toast       = document.getElementById('toast');
+
+/* ─── TOAST ─── */
+function showToast(msg, duration=2000) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), duration);
+}
+
+/* ─── STATUS HELPER ─── */
+function setStatus({ box='loading', label='SYSTEM', icon='⬡', msg='', cls='cyan' }) {
+  statusBox.className = `status-box ${box}`;
+  statusLabel.textContent = label;
+  statusIcon.textContent = icon;
+  statusIcon.style.animation = 'none';
+  void statusIcon.offsetWidth;
+  statusIcon.style.animation = 'iconPop 0.3s cubic-bezier(.22,.68,0,1.5) both';
+  statusMsg.className = `status-msg ${cls}`;
+  statusMsg.innerHTML = msg;
+}
+
+/* ─── BUILD STEPS TRACK ─── */
+function buildStepsTrack() {
+  stepsTrack.innerHTML = '';
+  steps.forEach((_, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'step-dot';
+    dot.id = `dot-${i}`;
+    stepsTrack.appendChild(dot);
+  });
+  updateStepDots();
+}
+
+function updateStepDots() {
+  steps.forEach((_, i) => {
+    const dot = document.getElementById(`dot-${i}`);
+    if (!dot) return;
+    if (i < currentStep) dot.className = 'step-dot done';
+    else if (i === currentStep) dot.className = 'step-dot active';
+    else dot.className = 'step-dot';
+  });
+}
+
+/* ─── GENERATE CHALLENGES ─── */
+function generateChallenges() {
+  // Fixed order for predictable UX: left/right, up/down, blink, smile
+  steps = ['Turn Left', 'Turn Right', 'Look Up', 'Look Down', 'Blink', 'Smile'];
+}
+
+/* ─── CHALLENGE UI ─── */
+function showChallenge() {
+  if (currentStep >= steps.length) { onAllComplete(); return; }
+  const s = steps[currentStep];
+
+  blinkFrames = 0;
+  smileFrames = 0;
+
+  const config = {
+    'Turn Right': { icon: '👉', msg: 'Turn your head to the <strong>right</strong>', cls: 'amber' },
+    'Turn Left':  { icon: '👈', msg: 'Turn your head to the <strong>left</strong>',  cls: 'amber' },
+    'Look Up':    { icon: '👆', msg: 'Tilt your head <strong>upward</strong>',        cls: 'cyan'  },
+    'Look Down':  { icon: '👇', msg: 'Tilt your head <strong>downward</strong>',      cls: 'cyan'  },
+    'Blink':      { icon: '👁', msg: '<strong>Blink</strong> your eyes clearly',      cls: 'amber' },
+    'Smile':      { icon: '😊', msg: 'Give us a <strong>smile</strong>!',             cls: 'green' },
+  };
+  const c = config[s];
+
+  setStatus({
+    box: 'challenge', label: `STEP ${currentStep+1} OF ${steps.length}`,
+    icon: c.icon, msg: c.msg, cls: c.cls
+  });
+
+  // Show/hide direction arrows only for left/right
+  const isLR = s === 'Turn Right' || s === 'Turn Left';
+  dirIndicator.classList.toggle('visible', isLR);
+  ratioWrap.classList.toggle('visible', isLR);
+
+  if (isLR) {
+    arrowRight.className = `dir-arrow ${s === 'Turn Right' ? 'target' : ''}`;
+    arrowLeft.className  = `dir-arrow ${s === 'Turn Left'  ? 'target' : ''}`;
+  }
+  updateStepDots();
+}
+
+/* ─── STEP COMPLETE ─── */
+function onStepPass() {
+  // Flash overlay
+  stepOverlay.classList.remove('ripple');
+  void stepOverlay.offsetWidth;
+  stepOverlay.classList.add('ripple');
+
+  currentStep++;
+  updateStepDots();
+
+  if (currentStep < steps.length) {
+    setTimeout(() => { stepLocked = false; showChallenge(); }, 800);
+  } else {
+    setTimeout(onAllComplete, 600);
+  }
+}
+
+/* ─── ALL DONE ─── */
+async function onAllComplete() {
+  dirIndicator.classList.remove('visible');
+  ratioWrap.classList.remove('visible');
+  scanLine.classList.add('hidden');
+
+  setStatus({
+    box: 'success', label: 'LIVENESS VERIFIED',
+    icon: '✓', msg: 'Extracting biometric descriptor…', cls: 'green'
+  });
+
+  // Do final detection for descriptor
+  const result = await faceapi
+    .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+    .withFaceLandmarks()
+    .withFaceDescriptor();
+
+  if (result) {
+    storedDescriptor = result.descriptor;
+    isComplete = true;
+    showResult(storedDescriptor);
+  } else {
+    setStatus({
+      box: 'error', label: 'EXTRACTION FAILED',
+      icon: '⚠', msg: 'No face detected. Please reload and try again.', cls: 'red'
+    });
+  }
+}
+
+/* ─── SHOW RESULT ─── */
+function showResult(descriptor) {
+  const arr = Array.from(descriptor);
+  // Format nicely: 8 values per line
+  let formatted = '';
+  for (let i = 0; i < arr.length; i += 8) {
+    formatted += arr.slice(i, i+8).map(v => v.toFixed(6)).join('  ') + '\n';
+  }
+  descriptorText.textContent = formatted.trim();
+  resultPanel.style.display = 'block';
+
+  videoWrap.classList.add('flash-success');
+  videoWrap.addEventListener('animationend', () => videoWrap.classList.remove('flash-success'), { once: true });
+
+  setStatus({
+    box: 'success', label: 'IDENTITY CAPTURED',
+    icon: '🧬', msg: '128-dimensional face descriptor ready', cls: 'green'
+  });
+}
+
+/* ─── COPY FUNCTIONS ─── */
+function copyString() {
+  if (!storedDescriptor) return;
+  const str = Array.from(storedDescriptor).join(',');
+  navigator.clipboard.writeText(str).then(() => showToast('✓ Copied as comma-string'));
+}
+function copyArray() {
+  if (!storedDescriptor) return;
+  const arr = JSON.stringify(Array.from(storedDescriptor));
+  navigator.clipboard.writeText(arr).then(() => showToast('✓ Copied as JSON array'));
+}
+
+/* ─── INIT ─── */
+async function init() {
+  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+  try {
+    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+    await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+    await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+  } catch(e) {
+    setStatus({ box:'error', label:'MODEL ERROR', icon:'⚠', msg:'Failed to load AI models. Check your connection.', cls:'red' });
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'user', width:640, height:480 } });
+    video.srcObject = stream;
+    await new Promise(r => video.onloadedmetadata = r);
+  } catch(e) {
+    setStatus({ box:'error', label:'CAMERA ERROR', icon:'⚠', msg:'Camera access denied. Please allow camera access.', cls:'red' });
+    return;
+  }
+
+  generateChallenges();
+  buildStepsTrack();
+  showChallenge();
+  requestAnimationFrame(processFrame);
+}
+
+/* ─── MAIN PROCESS LOOP ─── */
+let lastProcessed = 0;
+async function processFrame(ts) {
+  if (!isComplete) {
+    if (ts - lastProcessed > 100) {
+      lastProcessed = ts;
+      await detect();
+    }
+    requestAnimationFrame(processFrame);
+  }
+}
+
+async function detect() {
+  if (currentStep >= steps.length) return;
+
+  const result = await faceapi
+    .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+    .withFaceLandmarks();
+
+  if (!result) {
+    headIcon.className = 'head-icon';
+    return;
+  }
+
+  const lm = result.landmarks;
+  const jaw      = lm.getJawOutline();
+  const nose     = lm.getNose();
+  const leftEye  = lm.getLeftEye();
+  const rightEye = lm.getRightEye();
+  const mouth    = lm.getMouth();
+
+  const noseTip  = nose[6];
+  const leftJaw  = jaw[0];
+  const rightJaw = jaw[16];
+  const noseBase = nose[0]; // bridge top
+
+  // ── LEFT / RIGHT (nose-to-jaw ratio) ──
+  const dLeft  = Math.abs(noseTip.x - leftJaw.x);
+  const dRight = Math.abs(noseTip.x - rightJaw.x);
+  const ratio  = dLeft / dRight;
+  currentRatio = ratio;
+
+  const pct = Math.min(100, Math.max(0, ((ratio - 0.2) / 2.8) * 100));
+  ratioFill.style.width = pct + '%';
+  ratioValue.textContent = ratio.toFixed(3);
+
+  let dir = 'center';
+  if (ratio > 2.5)  dir = 'right';
+  else if (ratio < 0.4) dir = 'left';
+
+  if (dir === 'right') { headIcon.className = 'head-icon turned-right'; headIcon.textContent = '🫥'; }
+  else if (dir === 'left') { headIcon.className = 'head-icon turned-left'; headIcon.textContent = '🫥'; }
+  else { headIcon.className = 'head-icon'; headIcon.textContent = '🫥'; }
+
+  const targetStep = steps[currentStep];
+
+  // ── UPDATE ARROWS (left/right steps only) ──
+  if (targetStep === 'Turn Left' || targetStep === 'Turn Right') {
+    arrowLeft.className  = `dir-arrow ${targetStep==='Turn Left'  ? 'target' : ''} ${dir==='left'  ? 'active' : ''}`;
+    arrowRight.className = `dir-arrow ${targetStep==='Turn Right' ? 'target' : ''} ${dir==='right' ? 'active' : ''}`;
+  }
+
+  // ── UP / DOWN (nose bridge y vs nose tip y relative to face height) ──
+  const faceHeight = jaw[8].y - noseBase.y;
+  const noseDrop   = noseTip.y - noseBase.y;  // how far nose tip is below bridge
+  const vertRatio  = noseDrop / faceHeight;    // ~0.3–0.4 neutral; smaller = looking up; larger = looking down
+
+  // ── BLINK (eye aspect ratio) ──
+  function eyeAR(eye) {
+    const h1 = Math.abs(eye[1].y - eye[5].y);
+    const h2 = Math.abs(eye[2].y - eye[4].y);
+    const w  = Math.abs(eye[0].x - eye[3].x);
+    return (h1 + h2) / (2 * w);
+  }
+  const leftEAR  = eyeAR(leftEye);
+  const rightEAR = eyeAR(rightEye);
+  const avgEAR   = (leftEAR + rightEAR) / 2;
+
+  // ── SMILE (mouth width vs mouth height) ──
+  const mouthWidth  = Math.abs(mouth[0].x - mouth[6].x);
+  const mouthHeight = Math.abs(mouth[3].y - mouth[9].y);
+  const smileRatio  = mouthWidth / (mouthHeight + 1);
+
+  // ── VALIDATE AGAINST CURRENT STEP ──
+  if (stepLocked) return;
+
+  if ((targetStep === 'Turn Left'  && dir === 'left')  ||
+      (targetStep === 'Turn Right' && dir === 'right')) {
+    stepLocked = true; onStepPass(); return;
+  }
+
+  if (targetStep === 'Look Up' && vertRatio < 0.22) {
+    stepLocked = true; onStepPass(); return;
+  }
+
+  if (targetStep === 'Look Down' && vertRatio > 0.52) {
+    stepLocked = true; onStepPass(); return;
+  }
+
+  if (targetStep === 'Blink') {
+    if (avgEAR < 0.18) {
+      blinkFrames++;
+      if (blinkFrames >= 2) { stepLocked = true; onStepPass(); }
+    } else {
+      blinkFrames = 0;
+    }
+    return;
+  }
+
+  if (targetStep === 'Smile') {
+    if (smileRatio > 4.5) {
+      smileFrames++;
+      if (smileFrames >= 3) { stepLocked = true; onStepPass(); }
+    } else {
+      smileFrames = 0;
+    }
+    return;
+  }
+}
+
+// faceapi is loaded with `defer`, so wait until it's available before running init
+function waitForFaceApi(cb, retries = 50) {
+  if (typeof faceapi !== 'undefined') { cb(); return; }
+  if (retries <= 0) {
+    setStatus({ box:'error', label:'LOAD ERROR', icon:'⚠', msg:'face-api.js failed to load. Check your connection.', cls:'red' });
+    return;
+  }
+  setTimeout(() => waitForFaceApi(cb, retries - 1), 100);
+}
+
+waitForFaceApi(init);
+</script>
+</body>
+</html>
