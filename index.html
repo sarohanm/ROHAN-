@@ -299,82 +299,6 @@
   .status-msg.red   { color: var(--red);   }
   .status-msg.violet{ color: var(--violet);}
 
-  /* Steps track */
-  .steps-track {
-    display: flex;
-    gap: 6px;
-    margin-bottom: 14px;
-    justify-content: center;
-  }
-  .step-dot {
-    flex: 1; height: 3px;
-    border-radius: 2px;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid var(--border);
-    transition: background 0.4s, box-shadow 0.4s;
-    max-width: 70px;
-  }
-  .step-dot.active { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
-  .step-dot.done   { background: var(--green); box-shadow: 0 0 8px var(--green); }
-
-  /* Head direction */
-  .direction-row {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    margin-bottom: 12px;
-    height: 36px;
-    opacity: 0;
-    transition: opacity 0.4s;
-  }
-  .direction-row.visible { opacity: 1; }
-  .dir-arrow {
-    font-size: 1.2rem;
-    color: var(--muted);
-    transition: color 0.3s, transform 0.3s;
-  }
-  .dir-arrow.target { color: var(--amber); transform: scale(1.3); }
-  .dir-arrow.active { color: var(--green); transform: scale(1.3); }
-  .head-icon {
-    width: 28px; height: 28px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1rem;
-    transition: transform 0.15s, box-shadow 0.3s;
-  }
-  .head-icon.turned-right { transform: rotate(12deg); box-shadow: 3px 0 10px rgba(0,229,255,0.25); }
-  .head-icon.turned-left  { transform: rotate(-12deg); box-shadow: -3px 0 10px rgba(0,229,255,0.25); }
-
-  /* Ratio bar */
-  .ratio-wrap { margin-bottom: 12px; opacity: 0; transition: opacity 0.4s; }
-  .ratio-wrap.visible { opacity: 1; }
-  .ratio-label {
-    font-family: var(--mono);
-    font-size: 0.58rem;
-    color: var(--muted);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 4px;
-  }
-  .ratio-track {
-    height: 3px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid var(--border);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-  .ratio-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--violet), var(--cyan));
-    width: 50%;
-    transition: width 0.1s linear;
-  }
-
   /* Enroll name input */
   .enroll-form { display: flex; gap: 8px; margin-bottom: 0; }
   .name-input {
@@ -741,6 +665,43 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* Canvas stable glow */
+  canvas.overlay.stable-glow {
+    filter: drop-shadow(0 0 6px rgba(0,255,170,0.55));
+    transition: filter 0.5s ease;
+  }
+
+  /* Scan progress bar */
+  .scan-progress-wrap {
+    margin-bottom: 10px;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+  .scan-progress-wrap.visible { opacity: 1; }
+  .scan-progress-label {
+    font-family: var(--mono);
+    font-size: 0.58rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .scan-progress-track {
+    height: 3px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .scan-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--cyan), var(--green));
+    width: 0%;
+    transition: width 0.2s linear;
+  }
+
   /* Responsive */
   @media (max-width: 680px) {
     .main { flex-direction: column; }
@@ -758,7 +719,7 @@
     <div class="nav-logo">⬡</div>
     <div>
       <span class="nav-title">Regis AI</span>
-      <span class="nav-tag">v2</span>
+      <span class="nav-tag">v3</span>
     </div>
   </div>
   <div class="mode-tabs">
@@ -775,7 +736,7 @@
     <div class="pane-header">
       <span class="pane-icon">📷</span>
       <span class="pane-title" id="video-pane-title">Enroll New Face</span>
-      <span class="pane-sub" id="video-pane-sub">LIVENESS CHALLENGE</span>
+      <span class="pane-sub" id="video-pane-sub">PASSIVE LIVENESS</span>
     </div>
     <div class="video-body">
 
@@ -794,21 +755,14 @@
         <canvas class="overlay" id="overlay-canvas"></canvas>
       </div>
 
-      <!-- Direction row -->
-      <div class="direction-row" id="direction-row">
-        <span class="dir-arrow" id="arrow-left">◀</span>
-        <div class="head-icon" id="head-icon">🫥</div>
-        <span class="dir-arrow" id="arrow-right">▶</span>
-      </div>
-
-      <!-- Ratio bar -->
-      <div class="ratio-wrap" id="ratio-wrap">
-        <div class="ratio-label">
-          <span>HEAD RATIO</span>
-          <span id="ratio-value">—</span>
+      <!-- Scan progress bar -->
+      <div class="scan-progress-wrap" id="scan-progress-wrap">
+        <div class="scan-progress-label">
+          <span>BUFFER FILL</span>
+          <span id="scan-progress-value">0 / 20</span>
         </div>
-        <div class="ratio-track">
-          <div class="ratio-fill" id="ratio-fill"></div>
+        <div class="scan-progress-track">
+          <div class="scan-progress-fill" id="scan-progress-fill"></div>
         </div>
       </div>
 
@@ -929,37 +883,30 @@
 /* ═══════════════════════════════════════════════
    STATE
 ═══════════════════════════════════════════════ */
-const CHALLENGES        = ['Turn Right', 'Turn Left'];
-const MATCH_THRESHOLD   = 0.52;  // Euclidean distance; lower = stricter
+const MATCH_THRESHOLD   = 0.45;  // tightened from 0.52
 const DETECT_INTERVAL   = 100;   // ms between detections
+const MAX_FRAMES        = 20;    // multi-frame buffer depth
 
 let mode          = 'enroll';   // 'enroll' | 'recognize'
-let steps         = [];
-let currentStep   = 0;
-let stepLocked    = false;
 let isCapturing   = false;
 let enrolledFaces = [];          // [{name, descriptor:Float32Array, date}]
 let lastDescriptor= null;
 let lastProcessed = 0;
 let modelsReady   = false;
 let faceDetected  = false;
+let frameBuffer   = [];          // accumulates Float32Array descriptors for averaging
+let spiderStable  = false;       // whether buffer is full and stable
 
 /* ═══════════════════════════════════════════════
    DOM REFS
 ═══════════════════════════════════════════════ */
 const video        = document.getElementById('video');
+const overlayCanvas= document.getElementById('overlay-canvas');
 const statusBox    = document.getElementById('status-box');
 const statusIcon   = document.getElementById('status-icon');
 const statusLabel  = document.getElementById('status-label');
 const statusMsg    = document.getElementById('status-msg');
 const stepsTrack   = document.getElementById('steps-track');
-const dirRow       = document.getElementById('direction-row');
-const arrowLeft    = document.getElementById('arrow-left');
-const arrowRight   = document.getElementById('arrow-right');
-const headIcon     = document.getElementById('head-icon');
-const ratioWrap    = document.getElementById('ratio-wrap');
-const ratioFill    = document.getElementById('ratio-fill');
-const ratioValue   = document.getElementById('ratio-value');
 const videoWrap    = document.getElementById('video-wrap');
 const stepOverlay  = document.getElementById('step-overlay');
 const scanLine     = document.getElementById('scan-line');
@@ -988,6 +935,9 @@ const toast        = document.getElementById('toast');
 const enrollSide   = document.getElementById('enroll-side');
 const recognizeSide= document.getElementById('recognize-side');
 const ioDiv        = document.getElementById('io-divider');
+const scanProgressWrap  = document.getElementById('scan-progress-wrap');
+const scanProgressFill  = document.getElementById('scan-progress-fill');
+const scanProgressValue = document.getElementById('scan-progress-value');
 
 /* ═══════════════════════════════════════════════
    TOAST
@@ -1017,7 +967,7 @@ function switchMode(m) {
   document.getElementById('tab-enroll').classList.toggle('active',    m==='enroll');
   document.getElementById('tab-recognize').classList.toggle('active', m==='recognize');
   document.getElementById('video-pane-title').textContent = m==='enroll' ? 'Enroll New Face' : 'Live Recognition';
-  document.getElementById('video-pane-sub').textContent   = m==='enroll' ? 'LIVENESS CHALLENGE' : 'REAL-TIME SCAN';
+  document.getElementById('video-pane-sub').textContent   = m==='enroll' ? 'PASSIVE LIVENESS' : 'REAL-TIME SCAN';
   enrollSide.style.display    = m==='enroll'    ? '' : 'none';
   recognizeSide.style.display = m==='recognize' ? '' : 'none';
   enrollForm.style.display    = m==='enroll'    ? '' : 'none';
@@ -1026,13 +976,12 @@ function switchMode(m) {
 
   // Reset state
   isCapturing = false;
-  currentStep = 0;
-  steps = [];
-  stepLocked = false;
-  dirRow.classList.remove('visible');
-  ratioWrap.classList.remove('visible');
+  frameBuffer = [];
+  spiderStable = false;
+  scanProgressWrap.classList.remove('visible');
   liveBadge.classList.remove('visible');
   scanLine.classList.remove('paused');
+  overlayCanvas.classList.remove('stable-glow');
 
   if (m === 'enroll') {
     setStatus({ label:'READY', icon:'⬡', msg:'Enter a name and press <strong>Scan</strong> to begin', cls:'cyan' });
@@ -1063,109 +1012,72 @@ function startEnroll() {
   if (!name) return;
 
   isCapturing  = true;
-  currentStep  = 0;
-  stepLocked   = false;
   lastDescriptor = null;
+  frameBuffer  = [];
+  spiderStable = false;
   btnEnroll.disabled = true;
   nameInput.disabled = true;
   descPanel.classList.remove('visible');
 
-  generateChallenges();
-  buildStepsTrack();
-  showChallenge();
+  stepsTrack.innerHTML = '';
+  setStatus({
+    box: 'challenge',
+    label: 'SCANNING',
+    icon: '🫥',
+    msg: 'Hold still — face the camera and stay centered',
+    cls: 'amber'
+  });
   scanLine.classList.remove('paused');
 }
 
-function generateChallenges() {
-  steps = [...CHALLENGES].sort(() => Math.random() - 0.5);
-}
-
-function buildStepsTrack() {
-  stepsTrack.innerHTML = '';
-  steps.forEach((_, i) => {
-    const d = document.createElement('div');
-    d.className = 'step-dot';
-    d.id = `dot-${i}`;
-    stepsTrack.appendChild(d);
-  });
-  updateDots();
-}
-
-function updateDots() {
-  steps.forEach((_, i) => {
-    const d = document.getElementById(`dot-${i}`);
-    if (!d) return;
-    if (i < currentStep)      d.className = 'step-dot done';
-    else if (i === currentStep) d.className = 'step-dot active';
-    else                      d.className = 'step-dot';
-  });
-}
-
-function showChallenge() {
-  if (currentStep >= steps.length) { onEnrollComplete(); return; }
-  const s = steps[currentStep];
-  const isRight = s === 'Turn Right';
-  setStatus({
-    box: 'challenge',
-    label: `CHALLENGE ${currentStep+1} OF ${steps.length}`,
-    icon: isRight ? '👉' : '👈',
-    msg:  isRight ? 'Turn your head to the <strong>right</strong>' : 'Turn your head to the <strong>left</strong>',
-    cls:  'amber'
-  });
-  arrowRight.className = `dir-arrow ${isRight ? 'target' : ''}`;
-  arrowLeft.className  = `dir-arrow ${!isRight ? 'target' : ''}`;
-  dirRow.classList.add('visible');
-  ratioWrap.classList.add('visible');
-  updateDots();
-}
-
-function onStepPass() {
-  stepOverlay.classList.remove('ripple');
-  void stepOverlay.offsetWidth;
-  stepOverlay.classList.add('ripple');
-  currentStep++;
-  updateDots();
-  if (currentStep < steps.length) {
-    setTimeout(() => { stepLocked = false; showChallenge(); }, 800);
-  } else {
-    setTimeout(onEnrollComplete, 600);
-  }
-}
-
 async function onEnrollComplete() {
-  dirRow.classList.remove('visible');
-  ratioWrap.classList.remove('visible');
   setStatus({ box:'success', label:'LIVENESS VERIFIED', icon:'✓', msg:'Capturing biometric descriptor…', cls:'green' });
 
-  // Use SSD for final capture (more accurate)
-  let result = await faceapi
-    .detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
-    .withFaceLandmarks()
-    .withFaceDescriptor();
+  let finalDescriptor = null;
+  let method = '';
 
-  if (!result) {
-    // Fallback to tiny
-    result = await faceapi
-      .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.4 }))
+  // Prefer averaged master vector from frame buffer
+  const master = getMasterVector();
+  if (master) {
+    finalDescriptor = master;
+    method = `frame-averaged (${frameBuffer.length} frames)`;
+  } else {
+    // Fallback: single-shot SSD
+    let result = await faceapi
+      .detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
       .withFaceLandmarks()
       .withFaceDescriptor();
+    if (!result) {
+      result = await faceapi
+        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.4 }))
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+    }
+    if (result) {
+      finalDescriptor = result.descriptor;
+      method = 'single-shot SSD';
+    }
   }
 
-  if (result) {
+  if (finalDescriptor) {
     const name = nameInput.value.trim();
-    const entry = { name, descriptor: result.descriptor, date: new Date().toLocaleString() };
+    const entry = { name, descriptor: finalDescriptor, date: new Date().toLocaleString() };
     enrolledFaces.push(entry);
-    lastDescriptor = result.descriptor;
+    lastDescriptor = finalDescriptor;
     saveToStorage();
     renderFacesList();
-    showDescriptor(result.descriptor, name);
-    setStatus({ box:'success', label:'ENROLLED ✓', icon:'🧬', msg:`<strong>${name}</strong> has been enrolled successfully`, cls:'green' });
+    showDescriptor(finalDescriptor, name);
+    setStatus({ box:'success', label:'ENROLLED ✓', icon:'🧬', msg:`<strong>${name}</strong> enrolled — ${method}`, cls:'green' });
     showToast(`✓ ${name} enrolled!`);
   } else {
     setStatus({ box:'error', label:'CAPTURE FAILED', icon:'⚠', msg:'No face detected. Please try again.', cls:'red' });
     showToast('⚠ No face detected — try again');
   }
 
+  frameBuffer = [];
+  spiderStable = false;
+  overlayCanvas.classList.remove('stable-glow');
+  scanProgressWrap.classList.remove('visible');
   isCapturing = false;
   nameInput.disabled = false;
   btnEnroll.disabled = !nameInput.value.trim();
@@ -1424,6 +1336,13 @@ async function processFrame(ts) {
 }
 
 async function tickDetect() {
+  // Size canvas to video
+  const vw = video.videoWidth  || video.clientWidth;
+  const vh = video.videoHeight || video.clientHeight;
+  overlayCanvas.width  = vw;
+  overlayCanvas.height = vh;
+  const ctx = overlayCanvas.getContext('2d');
+
   const result = await faceapi
     .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.35 }))
     .withFaceLandmarks();
@@ -1432,49 +1351,126 @@ async function tickDetect() {
   faceRing.className = `face-ring ${faceDetected ? 'detected' : ''}`;
 
   if (!result) {
-    headIcon.className = 'head-icon';
+    ctx.clearRect(0, 0, vw, vh);
+    // Lose stability — reset buffer
+    if (frameBuffer.length > 0) {
+      frameBuffer = [];
+      spiderStable = false;
+      overlayCanvas.classList.remove('stable-glow');
+      updateSpiderStatus();
+    }
     return;
   }
 
-  if (mode === 'enroll' && isCapturing && currentStep < steps.length) {
-    evaluateChallenge(result);
+  // ── Positional lock check ──
+  const box = result.detection.box;
+  const cx  = box.x + box.width / 2;
+  const inCenter = cx > vw * 0.25 && cx < vw * 0.75;
+  const inRange  = box.width > 100 && box.width < 400;
+  const isLocked = inCenter && inRange;
+
+  // ── Draw spider-web landmark overlay ──
+  const stable = isLocked && (frameBuffer.length >= MAX_FRAMES);
+  const webColor = stable
+    ? 'rgba(0,255,170,0.85)'
+    : isLocked
+      ? 'rgba(0,255,170,0.55)'
+      : 'rgba(255,68,102,0.7)';
+
+  ctx.clearRect(0, 0, vw, vh);
+  ctx.strokeStyle = webColor;
+  ctx.fillStyle   = webColor;
+  ctx.lineWidth   = 1;
+
+  const pts = result.landmarks.positions;
+  // Draw all landmark edges (full mesh)
+  const groups = [
+    result.landmarks.getJawOutline(),
+    result.landmarks.getLeftEyeBrow(),
+    result.landmarks.getRightEyeBrow(),
+    result.landmarks.getNose(),
+    result.landmarks.getLeftEye(),
+    result.landmarks.getRightEye(),
+    result.landmarks.getMouth()
+  ];
+  groups.forEach(grp => {
+    if (!grp || grp.length < 2) return;
+    ctx.beginPath();
+    ctx.moveTo(grp[0].x, grp[0].y);
+    for (let i = 1; i < grp.length; i++) ctx.lineTo(grp[i].x, grp[i].y);
+    ctx.stroke();
+  });
+  // Draw landmark dots
+  pts.forEach(p => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // ── Buffer accumulation (only when capturing & positionally locked) ──
+  if (mode === 'enroll' && isCapturing && isLocked) {
+    if (frameBuffer.length < MAX_FRAMES) {
+      captureBufferFrame();
+    } else if (frameBuffer.length >= MAX_FRAMES && spiderStable) {
+      // Buffer full — auto-complete enrollment
+      isCapturing = false;
+      onEnrollComplete();
+    }
+  } else if (mode === 'enroll' && isCapturing && !isLocked) {
+    // Face detected but not in position — clear buffer
+    if (frameBuffer.length > 0) {
+      frameBuffer = [];
+      spiderStable = false;
+      overlayCanvas.classList.remove('stable-glow');
+      updateSpiderStatus();
+    }
   }
+
+  // Stable glow
+  spiderStable = isLocked && frameBuffer.length >= MAX_FRAMES;
+  if (spiderStable) {
+    overlayCanvas.classList.add('stable-glow');
+  } else {
+    overlayCanvas.classList.remove('stable-glow');
+  }
+  updateSpiderStatus();
 }
 
-function evaluateChallenge(result) {
-  const jaw    = result.landmarks.getJawOutline();
-  const nose   = result.landmarks.getNose();
-  const noseTip  = nose[6];
-  const leftJaw  = jaw[0];
-  const rightJaw = jaw[16];
+// Accumulate a descriptor frame into the buffer (async, fire-and-forget)
+async function captureBufferFrame() {
+  if (frameBuffer.length >= MAX_FRAMES) return; // full
+  try {
+    const r = await faceapi
+      .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.35 }))
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+    if (r) {
+      frameBuffer.push(r.descriptor);
+      updateSpiderStatus();
+    }
+  } catch(_) {}
+}
 
-  const dLeft  = Math.abs(noseTip.x - leftJaw.x);
-  const dRight = Math.abs(noseTip.x - rightJaw.x);
-  const ratio  = dLeft / dRight;
+// Average all buffered descriptors into one master vector
+function getMasterVector() {
+  if (frameBuffer.length === 0) return null;
+  const len = frameBuffer[0].length; // 128
+  const avg = new Float32Array(len);
+  frameBuffer.forEach(d => { for (let i = 0; i < len; i++) avg[i] += d[i]; });
+  for (let i = 0; i < len; i++) avg[i] /= frameBuffer.length;
+  return avg;
+}
 
-  const pct = Math.min(100, Math.max(0, ((ratio - 0.2) / 2.8) * 100));
-  ratioFill.style.width = pct + '%';
-  ratioValue.textContent = ratio.toFixed(3);
-
-  // NOTE: video is mirrored so visual right = ratio > 2.5
-  let dir = 'center';
-  if (ratio > 2.3)      dir = 'right';
-  else if (ratio < 0.43) dir = 'left';
-
-  headIcon.className = dir === 'right' ? 'head-icon turned-right'
-                     : dir === 'left'  ? 'head-icon turned-left'
-                     : 'head-icon';
-
-  const target = steps[currentStep];
-  arrowLeft.className  = `dir-arrow ${target==='Turn Left'  ? 'target' : ''} ${dir==='left'  ? 'active' : ''}`;
-  arrowRight.className = `dir-arrow ${target==='Turn Right' ? 'target' : ''} ${dir==='right' ? 'active' : ''}`;
-
-  const detected = dir === 'left'  ? 'Turn Left'
-                 : dir === 'right' ? 'Turn Right' : '';
-
-  if (detected && detected === target && !stepLocked) {
-    stepLocked = true;
-    onStepPass();
+// Update the scan progress bar and canvas glow state
+function updateSpiderStatus() {
+  const count = frameBuffer.length;
+  const pct   = Math.min(100, (count / MAX_FRAMES) * 100);
+  if (mode === 'enroll' && isCapturing) {
+    scanProgressWrap.classList.add('visible');
+    scanProgressFill.style.width = pct + '%';
+    scanProgressValue.textContent = `${count} / ${MAX_FRAMES}`;
+  } else {
+    scanProgressWrap.classList.remove('visible');
   }
 }
 
